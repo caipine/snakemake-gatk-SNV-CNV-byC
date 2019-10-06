@@ -1,0 +1,117 @@
+
+include: "rules/common2_for_split.smk"
+
+
+
+############################################
+#ALL_TRIM = expand("trimmed/{sample}-{unit}.1.fastq.gz", sample = samples.index, unit = units["unit"])
+#ALL_ = expand( , sample = samples.index, unit = units["unit"])
+#ALL_MAPPING = expand("mapped/{sample}-{unit}.sorted.bam", sample = samples.index, unit = units["unit"])
+#ALL_DEDUP = expand("dedup/{sample}-{unit}.bam", sample = samples.index, unit = units["unit"])
+#ALL_RECAL = expand("recal/{sample}-{unit}.bam", sample = samples.index, unit = units["unit"])
+#ALL_RECAL_BAI = expand("recal/{sample}-{unit}.bam.bai", sample = samples.index, unit = units["unit"])
+ALL_m2 = expand("called/{sample}.1_somatic_m2.vcf.gz",sample = samples.index)
+ALL_sum=expand("called/{sample}_7_tumor_getpileupsummaries.table", sample = samples.index)
+ALL_Filter_1st=expand("called/{sample}_9_somatic_oncefiltered.vcf.gz", sample = samples.index)
+ALL_ART=expand("called/{sample}_10_tumor_artifact.pre_adapter_detail_metrics",sample = samples.index)
+ALL_Filter_2nd=expand("called/{sample}_11_somatic_twicefiltered.vcf.gz", sample = samples.index)
+
+TARGETS = []
+#TARGETS.extend(ALL_TRIM)
+#TARGETS.extend(ALL_MAPPING)
+#TARGETS.extend(ALL_DEDUP)
+#TARGETS.extend(ALL_RECAL)
+#TARGETS.extend(ALL_RECAL_BAI)
+TARGETS.extend(ALL_m2)
+TARGETS.extend(ALL_sum)
+TARGETS.extend(ALL_Filter_1st)
+TARGETS.extend(ALL_ART)
+TARGETS.extend(ALL_Filter_2nd)
+localrules: all
+
+rule all:
+     input: TARGETS
+#############################################
+
+##### Modules #####
+
+include: "rules/mapping_m2_mapping24_for_split.smk"
+include: "rules/to-unpaired-normal.smk"
+
+
+
+rule GetPileupSummaries:
+    input:
+       tumor_bam="called/{sample}.2_tumor_normal_m2.bam",
+       exac_common=config["ref"]["exac_common"],
+       intervallist=config["ref"]["interval_list"],
+    output:
+       table7="called/{sample}_7_tumor_getpileupsummaries.table",
+       table8="called/{sample}_8_tumor_calculatecontamination.table",
+    priority: 50
+    threads:  6
+    shell:
+        """
+        gatk GetPileupSummaries \
+        -I {input.tumor_bam} \
+        -V {input.exac_common} \
+        -L {input.intervallist} \
+        -O {output.table7}
+
+        gatk CalculateContamination \
+        -I {output.table7} \
+        -O {output.table8}
+       """
+
+
+rule FilterMutectCalls:
+    input:
+       ref=config["ref"]["genome"],
+       gvcf="called/{sample}.1_somatic_m2.vcf.gz",
+       table8="called/{sample}_8_tumor_calculatecontamination.table"
+    output:
+       vcf9="called/{sample}_9_somatic_oncefiltered.vcf.gz",
+    threads: 6
+    priority: 50
+    shell:
+        """
+        gatk FilterMutectCalls \
+        -R {input.ref}  \
+        -V {input.gvcf}  \
+        --contamination-table {input.table8}  \
+        -O {output.vcf9}
+        """
+
+rule CollectSequencingArtifactMetrics:
+    input:
+       tumor_bam="called/{sample}.2_tumor_normal_m2.bam",
+       ref=config["ref"]["genome"]
+    output:
+       artifact10="called/{sample}_10_tumor_artifact.pre_adapter_detail_metrics"
+    params:
+       artifact10="called/{sample}_10_tumor_artifact"
+    threads: 6
+    shell:
+       """
+       gatk CollectSequencingArtifactMetrics \
+       -I {input.tumor_bam} \
+       -O {params.artifact10} \
+       -R {input.ref}
+       """
+
+
+rule FilterByOrientationBias:
+    input:
+       vcf9="called/{sample}_9_somatic_oncefiltered.vcf.gz",
+       artifact10="called/{sample}_10_tumor_artifact.pre_adapter_detail_metrics"
+    output:
+       vcf_11="called/{sample}_11_somatic_twicefiltered.vcf.gz"
+    threads: 6
+    shell:
+       """
+       gatk FilterByOrientationBias \
+       -V {input.vcf9} \
+       -P {input.artifact10} \
+       -O {output.vcf_11}
+       """
+

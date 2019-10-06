@@ -1,0 +1,133 @@
+
+include: "rules/common2.smk"
+
+
+ALL_CollectReadCounts=expand("call_cnv/{sample}-{unit}.counts.hdf5", sample = samples.index, unit = units["unit"])
+ALL_CollectAllelicCounts=expand("call_cnv/{sample}-{unit}.allelicCounts.tsv", sample = samples.index, unit = units["unit"])
+ALL_DenoiseReadCounts =expand("call_cnv/{sample}-{unit}.standardizedCR.tsv", sample = samples.index, unit = units["unit"])
+ALL_ModelSegments = expand("sandbox/{sample}-{unit}.cr.igv.seg", sample = samples.index, unit = units["unit"])
+ALL_PlotDenoisedCopyRatios =  expand("plots/{sample}-{unit}.denoised.png", sample = samples.index, unit = units["unit"])
+ALL_PlotModeledSegments_tumor =  expand("sandbox/{sample}-tumor.model.png", sample = samples.index)
+
+       
+TARGETS = []
+TARGETS.extend(ALL_CollectReadCounts)
+#TARGETS.extend(ALL_CollectAllelicCounts)
+TARGETS.extend(ALL_DenoiseReadCounts)
+TARGETS.extend(ALL_ModelSegments)
+#TARGETS.extend(ALL_PlotDenoisedCopyRatios)
+#TARGETS.extend(ALL_PlotModeledSegments_tumor)
+
+localrules: all
+
+rule all:
+     input: TARGETS
+#############################################
+
+rule CollectReadCounts:
+    input:
+        "recal/{sample}-{unit}.bam"
+    output:
+        "call_cnv/{sample}-{unit}.counts.hdf5"
+    threads: 6
+    shell:
+        """  
+       gatk CollectReadCounts \
+          -L cnv/S31285117_AllTracks.hg38.preprocessed.interval_list \
+          --input {input} \
+          --format HDF5 \
+          --interval-merging-rule OVERLAPPING_ONLY \
+          -O {output}
+       """
+
+
+
+rule CollectAllelicCounts:
+    input:
+        "recal/{sample}-{unit}.bam"
+    output:
+        "call_cnv/{sample}-{unit}.allelicCounts.tsv"
+    threads: 6
+    shell:
+        """
+        gatk  CollectAllelicCounts \
+          -L cnv/S31285117_AllTracks.hg38.preprocessed.interval_list \
+          --input {input} \
+          --reference /work/03988/qscai/cqs_data/gatk/hg38/Homo_sapiens_assembly38.fasta \
+          --minimum-base-quality 20 \
+          --output {output}
+        """
+
+
+rule DenoiseReadCounts:
+    input:
+        hdf5="call_cnv/{sample}-{unit}.counts.hdf5",
+        pon="pon/annotated.mcl24.pon.hdf5"
+    output:
+        standard="call_cnv/{sample}-{unit}.standardizedCR.tsv",
+        denoised="call_cnv/{sample}-{unit}.denoisedCR.tsv"
+    threads: 6
+    shell:
+        """
+        gatk DenoiseReadCounts \
+            --input {input.hdf5} \
+            --count-panel-of-normals {input.pon} \
+            --standardized-copy-ratios {output.standard} \
+            --denoised-copy-ratios {output.denoised}
+        """
+
+rule PlotDenoisedCopyRatios:
+    input:
+        standard="call_cnv/{sample}-{unit}.standardizedCR.tsv",
+        denoised="call_cnv/{sample}-{unit}.denoisedCR.tsv"
+    output:
+        "plots/{sample}-{unit}.denoised.png"
+    params: 
+        "{sample}-{unit}"
+    threads: 6
+    shell:
+        """
+        gatk PlotDenoisedCopyRatios \
+        --standardized-copy-ratios {input.standard} \
+        --denoised-copy-ratios {input.denoised} \
+        --sequence-dictionary /work/03988/qscai/cqs_data/gatk/hg38/Homo_sapiens_assembly38.dict \
+        --minimum-contig-length 46709983 \
+        --output plots \
+        --output-prefix {params}
+        """
+
+
+rule ModelSegments:
+	input:
+		denoised="call_cnv/{sample}-{unit}.denoisedCR.tsv",
+	output:
+		tumor="sandbox/{sample}-{unit}.cr.igv.seg"
+	params:
+		prefix="{sample}-{unit}"
+	threads:6
+	shell:
+		"""
+		gatk ModelSegments \
+                --denoised-copy-ratios {input.denoised} \
+		--output-prefix {params.prefix}  \
+		-O sandbox
+		"""
+
+rule PlotModeledSegments_tumor:
+        input:
+           denoised="call_cnv/{sample}-tumor.denoisedCR.tsv",
+           modelFinal = "sandbox/{sample}-tumor.modelFinal.seg"
+        output:
+	   "sandbox/{sample}-tumor.model.png"
+        params:
+           prefix="{sample}-{unit}"
+        threads:6
+        shell:
+           """     
+             gatk PlotModeledSegments \
+          --denoised-copy-ratios {input.denoised} \
+          --segments {input.modelFinal} \
+          --sequence-dictionary /work/03988/qscai/cqs_data/gatk/hg38/Homo_sapiens_assembly38.dict \
+          --output-prefix {params.prefix} \
+          -O sandbox
+          """

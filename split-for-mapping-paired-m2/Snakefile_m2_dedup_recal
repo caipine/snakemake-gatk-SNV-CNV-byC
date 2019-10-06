@@ -1,0 +1,30 @@
+include: "rules/common2.smk"
+
+
+
+############################################
+ALL_TRIM = expand("trimmed/{sample}-{unit}.1.fastq.gz", sample = samples.index, unit = units["unit"])
+ALL_MAPPING = expand("mapped/{sample}-{unit}.sorted.bam", sample = samples.index, unit = units["unit"])
+ALL_DEDUP = expand("dedup/{sample}-{unit}.bam", sample = samples.index, unit = units["unit"])
+ALL_RECAL = expand("recal/{sample}-{unit}.bam", sample = samples.index, unit = units["unit"])
+ALL_RECAL_BAI = expand("recal/{sample}-{unit}.bam.bai", sample = samples.index, unit = units["unit"])
+
+
+TARGETS = []
+#TARGETS.extend(ALL_TRIM)
+#TARGETS.extend(ALL_MAPPING)
+#TARGETS.extend(ALL_DEDUP)
+TARGETS.extend(ALL_RECAL)
+TARGETS.extend(ALL_RECAL_BAI)
+
+
+localrules: all
+rule all:
+     input: TARGETS
+#############################################
+
+
+##### Modules #####
+
+include: "rules/mappingCQS_m2-mapping24.smk"
+

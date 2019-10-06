@@ -1,0 +1,5 @@
+gatk  AnnotateIntervals \
+            -L cnv/S31285117_AllTracks.hg38.preprocessed.interval_list \
+            --reference /scratch/03988/qscai/DNAs/hg38/Homo_sapiens_assembly38.fasta  \
+            --interval-merging-rule OVERLAPPING_ONLY \
+            --output cnv/S31285117_AllTracks.hg38.preprocessed.interval_list.annotated.tsv

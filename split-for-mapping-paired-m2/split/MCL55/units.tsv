@@ -1,0 +1,3 @@
+sample	unit	platform	fq1	fq2
+MCL55	tumor	ILLUMINA	/scratch/03988/qscai/DNAs/wang/KN-MCL_HC183/Sample_HC183-10-MCL49/HC183-10-MCL49_S271_L004_R1_001.fastq.gz	/scratch/03988/qscai/DNAs/wang/KN-MCL_HC183/Sample_HC183-10-MCL49/HC183-10-MCL49_S271_L004_R2_001.fastq.gz
+MCL55	control	ILLUMINA	/scratch/03988/qscai/DNAs/wang/KN-MCL_HC183/Sample_HC183-11-MCL50/HC183-11-MCL50_S275_L004_R1_001.fastq.gz	/scratch/03988/qscai/DNAs/wang/KN-MCL_HC183/Sample_HC183-11-MCL50/HC183-11-MCL50_S275_L004_R2_001.fastq.gz

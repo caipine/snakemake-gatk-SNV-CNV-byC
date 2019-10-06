@@ -1,0 +1,88 @@
+
+include: "rules/common2.smk"
+
+
+def get_fastqT(wildcards):
+    fastqsT = units.loc[(wildcards.sample, "tumor"), ["fq1", "fq2"]].dropna()
+    if len(fastqsT) == 2:
+        return {"r1": fastqsT.fq1, "r2": fastqsT.fq2}
+    return {"r1": fastqsT.fq1}
+
+
+def get_fastqC(wildcards):
+    fastqsC = units.loc[(wildcards.sample, "control"), ["fq1", "fq2"]].dropna()
+    if len(fastqsC) == 2:
+        return {"r1C": fastqsC.fq1, "r2C": fastqsC.fq2}
+    return {"r1C": fastqsC.fq1}
+
+
+
+ALL_mkdir = expand("split/{sample}/config.yaml", sample = samples.index)
+ALL_cp = expand("split/{sample}/Snakefile", sample = samples.index)
+
+TARGETS = []
+TARGETS.extend(ALL_mkdir)
+TARGETS.extend(ALL_cp)
+
+rule all:
+     input: TARGETS
+
+rule mkdir:
+    input:
+      unpack(get_fastqT),
+      unpack(get_fastqC),
+      config=  "config.yaml_for_split",
+      common=  "rules/common2_for_split.smk",
+      mappin=  "rules/mapping_m2_mapping24_for_split.smk",
+      bedops=  "envs/bedops.yaml",
+      rbt=     "envs/rbt.yaml",
+      stats=   "envs/stats.yaml",
+      confsch= "schemas/config.schema.yaml",
+      samplesch= "schemas/samples.schema.yaml",
+      unitsch=  "schemas/units.schema.yaml"
+    output:
+      config=  "split/{sample}/config.yaml",
+      common=  "split/{sample}/rules/common2_for_split.smk",
+      mappin=  "split/{sample}/rules/mapping_m2-mapping24_for_split.smk",
+      units=   "split/{sample}/units.tsv",
+      bedops=  "split/{sample}/envs/bedops.yaml",
+      rbt=     "split/{sample}/envs/rbt.yaml",
+      stats=   "split/{sample}/envs/stats.yaml",
+      confsch= "split/{sample}/schemas/config.schema.yaml",  
+      samplesch= "split/{sample}/schemas/samples.schema.yaml",  
+      unitsch=  "split/{sample}/schemas/units.schema.yaml"
+  
+    shell:
+        """
+        cp {input.config} {output.config}
+        cp {input.common} {output.common}
+        cp {input.mappin} {output.mappin}
+        cp {input.bedops} {output.bedops}
+        cp {input.rbt} {output.rbt}
+        cp {input.stats} {output.stats}
+        cp {input.confsch} {output.confsch}
+        cp {input.samplesch} {output.samplesch}
+        cp {input.unitsch} {output.unitsch}
+        cat << EOF >  {output.units}
+sample	unit	platform	fq1	fq2
+{wildcards.sample}	tumor	ILLUMINA	{input.r1}	{input.r2}
+{wildcards.sample}	control	ILLUMINA	{input.r1C}	{input.r2C}
+EOF
+        """
+
+
+
+rule cp:
+     input:
+       snakefile="Snakefile_mutect2_for_split"
+     output:
+       snakefile="split/{sample}/Snakefile",
+       samplefile="split/{sample}/samples.tsv"   
+     shell:
+       """
+        cp {input.snakefile} {output.snakefile}
+        cat << EOF >  {output.samplefile}
+sample
+{wildcards.sample}
+EOF
+       """

@@ -1,0 +1,30 @@
+
+
+include: "rules/common2.smk"
+ALL_CollectReadCounts_normal=expand("pon/{sample}-control.counts.hdf5", sample = samples.index)
+
+TARGETS = []
+TARGETS.extend(ALL_CollectReadCounts_normal)
+
+localrules: all
+
+rule all:
+     input: TARGETS
+#############################################
+
+rule CollectReadCounts_normal:
+    input:
+        control="recal/{sample}-control.bam"
+    output:
+        control="pon/{sample}-control.counts.hdf5"
+    threads: 6
+    shell:
+        """  
+       gatk CollectReadCounts \
+          -L cnv/S31285117_AllTracks.hg38.preprocessed.interval_list \
+          --input {input.control} \
+          --format HDF5 \
+          --interval-merging-rule OVERLAPPING_ONLY \
+          -O {output.control}
+       """
+
