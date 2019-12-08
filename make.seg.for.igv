@@ -7,3 +7,6 @@ end
 cat tmp.*-tumor.cr.igv.seg > all.1.seg
 echo "Sample	 Chromosome	Start	End	Num_Probes	Segment_Mean" > tmp.txt
 cat tmp.txt all.1.seg > all.2.seg
+
+#/home/***/Downloads/gatk_CNV/cnv_gatk_927-MCL40--MCL92/cr/tumor
+#/home/qcai1/Downloads/gatk_CNV/sandbox_cnv_19cells/igv
