@@ -1,0 +1,9 @@
+foreach sample ( "`cat list`" )
+
+grep -v '^Sample' ${sample}-tumor.cr.igv.seg | awk -F" " '{print $1 "\t"  $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6-1}'  > tmp.${sample}-tumor.cr.igv.seg 
+
+end
+
+cat tmp.*-tumor.cr.igv.seg > all.1.seg
+echo "Sample	 Chromosome	Start	End	Num_Probes	Segment_Mean" > tmp.txt
+cat tmp.txt all.1.seg > all.2.seg
